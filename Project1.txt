@@ -1,0 +1,153 @@
+#include <hidef.h> /* for EnableInterrupts macro */
+#include "derivative.h" /* include peripheral declarations */
+#include "analog.h"
+#define PERIOD 20000 /*for 1msec period generation */
+volatile unsigned int TaskCounter1 = 0;
+volatile int period,i;
+volatile int beep_dur=150,k;
+void Toogle(void);
+void TPM1C0open(void);
+/*set up timer output compare */
+/* TPM1 Channel 0 Interrupt Service Routine (ISR)*/
+
+interrupt void TPM1C0isr(void) {
+ 
+   TPM1C0V = TPM1C0V + PERIOD; /* sets counts into counter = to previous value + required delay */
+                                //TaskCounter1=period;
+   TaskCounter1 ++;
+   
+  
+   
+   if(TaskCounter1 >= period+150){
+        TPM1C0SC=0x14;
+	      TaskCounter1=0;
+	      
+   }
+     
+    else {TPM1C0SC=0x10 ;}
+   
+   
+   TPM1C0SC_CH0F = 0; /*clear interrupt flag for C0*/
+   TPM1C0SC_CH0IE = 1; /* enable timer interrupt on C0 */
+
+}
+
+
+
+
+void main(void) {
+  unsigned volatile int LED_byte;
+  unsigned int sample;
+  unsigned long int i;
+
+/*  for(;;)
+   
+ */                SOPT_COPE = 0;   /* disable watchdog*/
+                   period=2000;
+                   TPM1SC = 0x08; /* select bus clock for TPM1 :prescale = 1 */
+                   TPM1C0open(); /* initialize timer and set up timer output compare */
+                   EnableInterrupts; /* enable global interrupt:clear the I bit in CCR */
+
+/*ADC 12-bit conversion result*/
+                  ANALOGopen(0); /*enable ADC operation on channel*/ 
+                  
+  
+  for ( ; ; ){
+  
+  
+            if(SW_SW7==0){
+              TPM1C0SC_CH0IE = 0;
+              LEDRL=0x00;
+            } else { 
+
+              TPM1C0SC_CH0IE = 1;
+
+    
+                  if (ADCgetSample(0, &sample)) //get a 12-bit conversion result and store it in variable sample
+                          {   
+                              LED_byte = (sample>> 4) ; //convert12- bit result to 8 bits and display it on 8 green LEDs
+
+                            if (LED_byte <= 0x14) {
+                                      
+                                      LEDRL=0x00;
+                                      period = 2000;
+                                                       } 
+                            else if (LED_byte >= 0x14 && LED_byte <= 0x34) {
+                                      
+                                      LEDRL=0x01;
+                                      period = 1000;
+                                                       }
+                             else if(LED_byte >= 0x34 && LED_byte <= 0x4C){
+     
+                                      LEDRL=0x03;
+                                      period = 900;
+                                                       }
+                              else if(LED_byte >= 0x4C && LED_byte <= 0x68 ){
+	                                  
+	                                    LEDRL=0x07;
+                                      period = 800;
+                                                       }
+                              else if(LED_byte >= 0x68 && LED_byte <= 0x83){
+	                                    
+	                                    LEDRL=0x0F;
+                                      period = 700;
+                                                       }
+                              else if(LED_byte >= 0x83 && LED_byte <= 0x9C){
+	                                    
+	                                    LEDRL=0x1F;
+                                      period = 600;
+                                                       }
+							                else if(LED_byte >= 0x9C && LED_byte <= 0xB6){
+                                    
+                                    	LEDRL=0x3F;
+                                      period = 500;
+                                                       }
+                              else if(LED_byte >= 0xB6 && LED_byte <= 0xD1){
+	                                    
+	                                    LEDRL=0x7F;
+                                      period = 400;
+                                                       }
+							                else if(LED_byte >= 0xD1 && LED_byte <= 0xE5){
+
+                                    	LEDRL=0xFF;
+                                      period = 100;
+                                                       }
+                              else   {
+                                      Toogle();
+                                      period =0;
+
+
+                               }
+
+
+                          }
+
+                  }
+
+                  for(i=0;i<10000;i++) {
+                  }
+           }
+  
+}
+
+
+
+
+
+/*Open TPM1 channel 0 for output compare operation*/
+void TPM1C0open(void)
+{             TPM1C0SC = 0x10; /*select output compare mode + toggle Port D pin 0*/
+              TPM1C0V = TPM1CNT+PERIOD; /* sets counts into counter = to current TPM1CNT + required delay */
+              TPM1C0SC_CH0F = 0; /*clear interrupt flag for C0*/
+              TPM1C0SC_CH0IE = 1; /* enable timer interrupt on C0 */
+
+}
+
+void Toogle(void) {
+  for(i=0;i<=2500;i++){
+    LEDRL=LEDRL^0xFF;
+
+  }
+
+}
+  
